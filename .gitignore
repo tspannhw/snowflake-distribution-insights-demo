@@ -31,11 +31,11 @@ snowflake_private_key*
 rsa_key*
 
 # ── Secrets / env files ───────────────────────────────────────────────────────
-!.env.example          # template is safe to commit
-!app/.env.example      # template is safe to commit
 .env
 .envrc
 app/.env            # MQTT + Snowflake credentials — NEVER commit
+!.env.example       # templates are safe to commit (negation must follow the pattern)
+!app/.env.example
 secrets.yaml
 secrets.json
 *.secret
