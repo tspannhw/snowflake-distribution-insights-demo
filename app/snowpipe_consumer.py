@@ -79,14 +79,15 @@ def _build_profile_json() -> str:
     # SSv2 SDK REQUIRES lowercase account identifier for JWT generation
     account = config.SNOWFLAKE_ACCOUNT.lower().strip()
     # JWT iss claim format: <account_lowercase>.<USER_UPPERCASE>.SHA256:<fp>
-    # Snowflake validates the username in uppercase — pass it as-is if already upper,
-    # or uppercase it so the JWT issuer matches the stored key fingerprint.
     user = config.SNOWFLAKE_USER.upper().strip()
+    # Use SSv2-specific key (registered as RSA_PUBLIC_KEY_2) — fresh keypair
+    # generated with openssl pkcs8 -nocrypt for Rust JWT compatibility.
+    key_path = config.SSV2_PRIVATE_KEY_PATH
     profile = {
         "user":             user,
         "account":          account,
         "url":              f"https://{account}.snowflakecomputing.com:443",
-        "private_key_file": config.SNOWFLAKE_PRIVATE_KEY_PATH,
+        "private_key_file": key_path,
         "role":             config.SNOWFLAKE_ROLE,
     }
     tmp = tempfile.NamedTemporaryFile(

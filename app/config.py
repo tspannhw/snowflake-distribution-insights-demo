@@ -24,6 +24,13 @@ SNOWFLAKE_USER          = os.environ["SNOWFLAKE_USER"].upper().strip()
 SNOWFLAKE_PRIVATE_KEY_PATH = os.path.expanduser(
     os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "~/.snowflake/keys/snowflake_private_key.p8")
 )
+# Dedicated SSv2 key — generated with openssl pkcs8 -nocrypt for Rust JWT compat.
+# Falls back to SNOWFLAKE_PRIVATE_KEY_PATH if not set.
+SSV2_PRIVATE_KEY_PATH = os.path.expanduser(
+    os.environ.get("SSV2_PRIVATE_KEY_PATH",
+                   os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH",
+                                  "~/.snowflake/keys/snowflake_private_key.p8"))
+)
 SNOWFLAKE_ROLE          = os.environ.get("SNOWFLAKE_ROLE", "SALES_ENGINEER")
 SNOWFLAKE_WAREHOUSE     = os.environ.get("SNOWFLAKE_WAREHOUSE", "INGEST")
 SNOWFLAKE_DATABASE      = os.environ.get("SNOWFLAKE_DATABASE", "ANALYTICS_DEV_DB")
