@@ -1,0 +1,364 @@
+# ============================================================================
+# Distribution Insights Semantic Model
+# For use with Cortex Analyst
+# Covers: Advisor, Territory, Fund entities
+# Database: ANALYTICS_DEV_DB
+# ============================================================================
+# Changes from original:
+#   - Removed top-level "filters:" (not a valid field in Cortex Analyst proto)
+#   - Removed top-level "metrics:" (not a valid field; aggregations live in measures)
+#   - Renamed "facts:" -> "measures:" (correct Cortex Analyst field name)
+#   - Added "default_aggregation:" to every measure (required field)
+#   - Fixed VQR SQL: column is "advisor_tier", dimension name is "tier"
+#   - Added "verified_at" and "verified_by" to all verified_queries
+# ============================================================================
+
+name: DISTRIBUTION_INSIGHTS_SV
+description: >
+  Distribution analytics semantic model for ACME Investment Management.
+  Enables natural language queries over advisor engagement, territory performance,
+  fund flows, and sales pipeline data. Powered by Cortex Analyst.
+
+tables:
+  - name: ADVISOR_ENGAGEMENT_SCORE
+    description: Rolling advisor engagement metrics updated hourly via Dynamic Table
+    base_table:
+      database: ANALYTICS_DEV_DB
+      schema: DISTRIBUTION
+      table: ADVISOR_ENGAGEMENT_SCORE
+    dimensions:
+      - name: advisor_id
+        description: Unique advisor identifier
+        expr: advisor_id
+        data_type: text
+      - name: advisor_name
+        description: Full name of the advisor
+        expr: advisor_name
+        data_type: text
+        synonyms: [wholesaler, rep, financial advisor, FA]
+      - name: territory_id
+        description: Territory assignment code
+        expr: territory_id
+        data_type: text
+      - name: territory_name
+        description: Human-readable territory name (e.g. Northeast, Pacific)
+        expr: territory_name
+        data_type: text
+        synonyms: [region, area, zone, district]
+      - name: tier
+        description: Advisor AUM tier classification (PLATINUM, GOLD, SILVER, BRONZE)
+        expr: advisor_tier
+        data_type: text
+        synonyms: [tier, classification, segment, category]
+      - name: score_date
+        description: Date the engagement score was calculated
+        expr: score_date
+        data_type: date
+    measures:
+      - name: engagement_score
+        description: Composite advisor engagement score (0-100) based on activity recency and frequency
+        expr: engagement_score
+        data_type: number
+        default_aggregation: avg
+        synonyms: [engagement, activity score, interaction score, contact score]
+      - name: aum_amount
+        description: Total assets under management in USD
+        expr: aum_amount
+        data_type: number
+        default_aggregation: sum
+        synonyms: [AUM, assets, assets under management, book size]
+      - name: call_count_30d
+        description: Number of calls in the last 30 days
+        expr: call_count_30d
+        data_type: number
+        default_aggregation: sum
+        synonyms: [calls, phone calls, outbound calls]
+      - name: meeting_count_30d
+        description: Number of meetings in the last 30 days
+        expr: meeting_count_30d
+        data_type: number
+        default_aggregation: sum
+        synonyms: [meetings, in-person meetings, appointments]
+      - name: open_opportunity_count
+        description: Count of open Salesforce opportunities
+        expr: open_opportunity_count
+        data_type: number
+        default_aggregation: sum
+        synonyms: [open opportunities, pipeline count, deals]
+      - name: open_opportunity_value
+        description: Total dollar value of open opportunities in USD
+        expr: open_opportunity_value
+        data_type: number
+        default_aggregation: sum
+        synonyms: [pipeline value, opportunity amount, potential AUM]
+
+  - name: FUND_FLOW_ATTRIBUTION
+    description: Daily fund flow data attributed by advisor and territory
+    base_table:
+      database: ANALYTICS_DEV_DB
+      schema: DISTRIBUTION
+      table: FUND_FLOW_ATTRIBUTION
+    dimensions:
+      - name: fund_id
+        description: Fund identifier
+        expr: fund_id
+        data_type: text
+      - name: fund_name
+        description: Full fund name
+        expr: fund_name
+        data_type: text
+        synonyms: [fund, product, investment product, vehicle]
+      - name: fund_category
+        description: Asset class category (Equity, Fixed Income, Multi-Asset)
+        expr: fund_category
+        data_type: text
+        synonyms: [asset class, category, type, fund type]
+      - name: advisor_id
+        description: Advisor who drove the flow
+        expr: advisor_id
+        data_type: text
+      - name: territory_id
+        description: Territory associated with the flow
+        expr: territory_id
+        data_type: text
+      - name: flow_date
+        description: Date of the fund flow transaction
+        expr: flow_date
+        data_type: date
+      - name: flow_type
+        description: Direction of flow (INFLOW or OUTFLOW)
+        expr: flow_type
+        data_type: text
+        synonyms: [direction, flow direction, in or out]
+    measures:
+      - name: flow_amount
+        description: Net flow amount in USD (positive = inflow, negative = outflow)
+        expr: flow_amount
+        data_type: number
+        default_aggregation: sum
+        synonyms: [flows, net flows, fund flows, money in, money out]
+      - name: capture_rate
+        description: Percentage of available AUM captured vs. benchmark
+        expr: capture_rate
+        data_type: number
+        default_aggregation: avg
+        synonyms: [capture, capture ratio, market share]
+
+  - name: TERRITORY_HEAT_MAP
+    description: Territory-level performance aggregation refreshed every 4 hours
+    base_table:
+      database: ANALYTICS_DEV_DB
+      schema: DISTRIBUTION
+      table: TERRITORY_HEAT_MAP
+    dimensions:
+      - name: territory_id
+        description: Territory code
+        expr: territory_id
+        data_type: text
+      - name: territory_name
+        description: Territory display name
+        expr: territory_name
+        data_type: text
+        synonyms: [region, area, district, territory]
+      - name: region
+        description: Geographic super-region (East, Central, West)
+        expr: region
+        data_type: text
+        synonyms: [super-region, geography, geo]
+      - name: territory_mgr
+        description: Name of the territory manager / wholesaler
+        expr: territory_mgr
+        data_type: text
+        synonyms: [manager, wholesaler, territory owner, rep]
+      - name: as_of_date
+        description: Date of the territory snapshot
+        expr: as_of_date
+        data_type: date
+    measures:
+      - name: total_aum
+        description: Total AUM across all advisors in the territory (USD)
+        expr: total_aum
+        data_type: number
+        default_aggregation: sum
+        synonyms: [territory AUM, book, total assets, total book]
+      - name: advisor_count
+        description: Number of active advisors in the territory
+        expr: advisor_count
+        data_type: number
+        default_aggregation: sum
+        synonyms: [advisor count, number of advisors, headcount]
+      - name: avg_engagement_score
+        description: Average engagement score across territory advisors
+        expr: avg_engagement_score
+        data_type: number
+        default_aggregation: avg
+        synonyms: [engagement, territory engagement, average score]
+      - name: net_flows_30d
+        description: Net fund flows in the territory over the last 30 days (USD)
+        expr: net_flows_30d
+        data_type: number
+        default_aggregation: sum
+        synonyms: [net flows, recent flows, flows this month, monthly flows]
+      - name: at_risk_advisor_count
+        description: Number of advisors with engagement score below 30 (attrition risk)
+        expr: at_risk_advisor_count
+        data_type: number
+        default_aggregation: sum
+        synonyms: [at-risk advisors, churning advisors, low engagement, risk count]
+      - name: territory_heat_score
+        description: Composite territory health score (0-100)
+        expr: territory_heat_score
+        data_type: number
+        default_aggregation: avg
+        synonyms: [heat score, territory score, health score]
+
+verified_queries:
+  - name: top_advisors_by_aum
+    question: "Who are the top 10 advisors by AUM?"
+    sql: |
+      SELECT
+        advisor_name,
+        territory_name,
+        advisor_tier AS tier,
+        aum_amount,
+        engagement_score
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE score_date = (SELECT MAX(score_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE)
+      ORDER BY aum_amount DESC
+      LIMIT 10
+
+  - name: territory_performance_ranking
+    question: "Which territories have the highest net flows this month?"
+    sql: |
+      SELECT
+        territory_name,
+        region,
+        net_flows_30d,
+        total_aum,
+        avg_engagement_score,
+        at_risk_advisor_count
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.TERRITORY_HEAT_MAP
+      WHERE as_of_date = (SELECT MAX(as_of_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.TERRITORY_HEAT_MAP)
+      ORDER BY net_flows_30d DESC
+
+  - name: at_risk_advisors_by_territory
+    question: "Which advisors are at risk of attrition by territory?"
+    sql: |
+      SELECT
+        advisor_name,
+        territory_name,
+        advisor_tier AS tier,
+        engagement_score,
+        aum_amount,
+        open_opportunity_value,
+        call_count_30d,
+        meeting_count_30d
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE engagement_score < 30
+        AND score_date = (SELECT MAX(score_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE)
+      ORDER BY aum_amount DESC
+
+  - name: fund_flows_by_category
+    question: "What are the net fund flows by fund category this quarter?"
+    sql: |
+      SELECT
+        fund_category,
+        fund_name,
+        SUM(flow_amount) AS net_flows,
+        COUNT(DISTINCT advisor_id) AS advisor_count
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.FUND_FLOW_ATTRIBUTION
+      WHERE flow_date >= DATE_TRUNC('quarter', CURRENT_DATE())
+      GROUP BY fund_category, fund_name
+      ORDER BY net_flows DESC
+
+  - name: pipeline_by_territory
+    question: "Show me the open pipeline value by territory"
+    sql: |
+      SELECT
+        territory_name,
+        SUM(open_opportunity_count) AS total_opportunities,
+        SUM(open_opportunity_value) AS total_pipeline_value,
+        AVG(engagement_score) AS avg_engagement
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE score_date = (SELECT MAX(score_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE)
+      GROUP BY territory_name
+      ORDER BY total_pipeline_value DESC
+
+  - name: advisor_engagement_trend
+    question: "How has advisor engagement changed over the last 90 days?"
+    sql: |
+      SELECT
+        score_date,
+        AVG(engagement_score) AS avg_score,
+        COUNT(DISTINCT advisor_id) AS active_advisors,
+        SUM(aum_amount) AS total_aum
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE score_date >= DATEADD('day', -90, CURRENT_DATE())
+      GROUP BY score_date
+      ORDER BY score_date
+
+  - name: top_funds_by_inflows
+    question: "Which funds have the highest inflows this quarter?"
+    sql: |
+      SELECT
+        fund_name,
+        fund_category,
+        SUM(CASE WHEN flow_type = 'INFLOW' THEN flow_amount ELSE 0 END) AS total_inflows,
+        SUM(CASE WHEN flow_type = 'OUTFLOW' THEN flow_amount ELSE 0 END) AS total_outflows,
+        SUM(flow_amount) AS net_flows,
+        COUNT(DISTINCT advisor_id) AS contributing_advisors
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.FUND_FLOW_ATTRIBUTION
+      WHERE flow_date >= DATE_TRUNC('quarter', CURRENT_DATE())
+      GROUP BY fund_name, fund_category
+      ORDER BY total_inflows DESC
+      LIMIT 10
+
+  - name: platinum_advisor_summary
+    question: "Give me a summary of our Platinum tier advisors"
+    sql: |
+      SELECT
+        territory_name,
+        COUNT(*) AS platinum_count,
+        SUM(aum_amount) AS total_aum,
+        AVG(engagement_score) AS avg_engagement,
+        SUM(open_opportunity_value) AS total_pipeline
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE advisor_tier = 'PLATINUM'
+        AND score_date = (SELECT MAX(score_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE)
+      GROUP BY territory_name
+      ORDER BY total_aum DESC
+
+  - name: low_activity_high_aum
+    question: "Which high-AUM advisors have had low activity recently?"
+    sql: |
+      SELECT
+        advisor_name,
+        territory_name,
+        advisor_tier AS tier,
+        aum_amount,
+        engagement_score,
+        call_count_30d,
+        meeting_count_30d,
+        open_opportunity_count
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE
+      WHERE aum_amount > 2000000
+        AND (call_count_30d + meeting_count_30d) < 2
+        AND score_date = (SELECT MAX(score_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.ADVISOR_ENGAGEMENT_SCORE)
+      ORDER BY aum_amount DESC
+      LIMIT 20
+
+  - name: territory_comparison
+    question: "Compare the Northeast and Pacific territories on key metrics"
+    sql: |
+      SELECT
+        territory_name,
+        total_aum,
+        advisor_count,
+        avg_engagement_score,
+        net_flows_30d,
+        at_risk_advisor_count,
+        ROUND(net_flows_30d / NULLIF(total_aum, 0) * 100, 2) AS flow_rate_pct
+      FROM ANALYTICS_DEV_DB.DISTRIBUTION.TERRITORY_HEAT_MAP
+      WHERE territory_name IN ('Northeast', 'Pacific')
+        AND as_of_date = (SELECT MAX(as_of_date) FROM ANALYTICS_DEV_DB.DISTRIBUTION.TERRITORY_HEAT_MAP)
+      ORDER BY territory_name

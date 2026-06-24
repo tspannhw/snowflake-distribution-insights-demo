@@ -1,0 +1,58 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python syntax check ───────────────────────────────────────────────────
+  python-lint:
+    name: Python syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile dashboard
+        run: python -m py_compile dashboard/dashboard.py
+      - name: Compile notebook fix scripts
+        run: |
+          find . -name "*.py" -not -path "*/.venv/*" -not -path "*/__pycache__/*" \
+            -exec python -m py_compile {} \;
+
+  # ── SQL lint ─────────────────────────────────────────────────────────────
+  sql-lint:
+    name: SQL lint (sqlfluff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install sqlfluff
+      - name: Lint SQL scripts
+        run: |
+          sqlfluff lint scripts/ \
+            --dialect snowflake \
+            --exclude-rules ST06,ST07,L034,L036,L043,L045 \
+            --ignore-local-config || true
+        # `|| true` — lint warnings should not block CI; update rules as desired
+
+  # ── Secret scan ───────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch || 'main' }}
+          head: HEAD
+          extra_args: --only-verified
