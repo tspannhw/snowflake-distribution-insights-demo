@@ -21,10 +21,10 @@ check() {
   local sql="$2"
   if snow sql --query "$sql" --connection "$CONN" > /dev/null 2>&1; then
     echo -e "${GRN}PASS${NC}  $label"
-    ((PASS++))
+    ((PASS++)) || true
   else
     echo -e "${RED}FAIL${NC}  $label"
-    ((FAIL++))
+    ((FAIL++)) || true
   fi
 }
 
@@ -32,13 +32,13 @@ check_rows() {
   local label="$1"
   local sql="$2"
   local count
-  count=$(snow sql --query "$sql" --connection "$CONN" 2>/dev/null | grep -Eo '[0-9]+' | tail -1)
+  count=$(snow sql --query "$sql" --connection "$CONN" 2>/dev/null | grep -Eo '[0-9]+' | tail -1 || true)
   if [[ "${count:-0}" -gt 0 ]]; then
     echo -e "${GRN}PASS${NC}  $label (${count} rows)"
-    ((PASS++))
+    ((PASS++)) || true
   else
     echo -e "${RED}FAIL${NC}  $label (0 rows)"
-    ((FAIL++))
+    ((FAIL++)) || true
   fi
 }
 
@@ -48,9 +48,9 @@ echo ""
 
 # ── Schema objects ────────────────────────────────────────────────────────────
 echo "--- Schema Objects ---"
-check "ANALYTICS_DEV_DB exists" "SELECT 1 FROM INFORMATION_SCHEMA.DATABASES WHERE DATABASE_NAME = 'ANALYTICS_DEV_DB'"
-check "STAGING schema exists"   "SELECT 1 FROM ANALYTICS_DEV_DB.INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'STAGING'"
-check "DISTRIBUTION schema"     "SELECT 1 FROM ANALYTICS_DEV_DB.INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'DISTRIBUTION'"
+check "ANALYTICS_DEV_DB exists" "SHOW DATABASES LIKE 'ANALYTICS_DEV_DB'"
+check "STAGING schema exists"   "SHOW SCHEMAS LIKE 'STAGING' IN DATABASE ANALYTICS_DEV_DB"
+check "DISTRIBUTION schema"     "SHOW SCHEMAS LIKE 'DISTRIBUTION' IN DATABASE ANALYTICS_DEV_DB"
 
 # ── Staging tables ────────────────────────────────────────────────────────────
 echo ""
@@ -78,15 +78,35 @@ echo ""
 echo "--- Cortex Agent ---"
 check "distribution_insights_agent exists" "SHOW AGENTS LIKE 'DISTRIBUTION_INSIGHTS_AGENT' IN SCHEMA ANALYTICS_DEV_DB.DISTRIBUTION"
 
-# ── Dashboard syntax check ────────────────────────────────────────────────────
+# ── Python syntax check (dashboard + ingest app) ─────────────────────────────
 echo ""
 echo "--- Code ---"
 if python3 -m py_compile dashboard/dashboard.py 2>/dev/null; then
   echo -e "${GRN}PASS${NC}  dashboard/dashboard.py compiles"
-  ((PASS++))
+  ((PASS++)) || true
 else
   echo -e "${RED}FAIL${NC}  dashboard/dashboard.py has syntax errors"
-  ((FAIL++))
+  ((FAIL++)) || true
+fi
+
+# ── Python syntax (ingest app) ───────────────────────────────────────────────
+echo ""
+echo "--- Ingest App ---"
+for pyfile in app/config.py app/mqtt_producer.py app/snowpipe_consumer.py; do
+  if python3 -m py_compile "$pyfile" 2>/dev/null; then
+    echo -e "${GRN}PASS${NC}  $pyfile compiles"
+    ((PASS++)) || true
+  else
+    echo -e "${RED}FAIL${NC}  $pyfile has syntax errors"
+    ((FAIL++)) || true
+  fi
+done
+if [[ -f "app/.env.example" ]]; then
+  echo -e "${GRN}PASS${NC}  app/.env.example present"
+  ((PASS++)) || true
+else
+  echo -e "${RED}FAIL${NC}  app/.env.example missing"
+  ((FAIL++)) || true
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────

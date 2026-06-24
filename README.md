@@ -331,7 +331,7 @@ No agent redeployment needed — the agent reads the YAML from stage at query ti
 
 ## References
 
-- [Snowpipe Streaming V2](https://docs.snowflake.com/en/user-guide/snowpipe-streaming/snowpipe-streaming-high-performance)
+- [Snowpipe Streaming V2](https://docs.snowflake.com/en/user-guide/snowpipe-streaming/data-load-snowpipe-streaming-overview)
 - [Dynamic Tables](https://docs.snowflake.com/en/user-guide/dynamic-tables-intro)
 - [Cortex Analyst](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst)
 - [Cortex Agents (CREATE AGENT)](https://docs.snowflake.com/en/sql-reference/sql/create-agent)

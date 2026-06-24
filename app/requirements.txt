@@ -1,0 +1,15 @@
+# MQTT → Snowpipe Streaming V2 ingest pipeline
+# Install: pip install -r requirements.txt
+
+# MQTT client (v2 callback API)
+paho-mqtt>=2.1.0
+
+# Snowpipe Streaming V2 SDK
+# Docs: https://docs.snowflake.com/en/user-guide/snowpipe-streaming/data-load-snowpipe-streaming-overview
+snowpipe-streaming>=0.2.0
+
+# Environment / config
+python-dotenv>=1.1.0
+
+# Synthetic data generation
+faker>=37.0.0

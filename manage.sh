@@ -15,6 +15,7 @@ WAREHOUSE="INGEST"
 CONNECTION="${SNOWFLAKE_CONNECTION:-your_connection}"
 DASHBOARD="dashboard/dashboard.py"
 STREAMLIT_NAME="DISTRIBUTION_INSIGHTS"
+APP_DIR="app"
 
 # Helper: run a SQL file and echo its name
 run_sql_file() {
@@ -131,6 +132,68 @@ case "${1:-help}" in
              ORDER BY MEASUREMENT_TIME DESC LIMIT 20;"
     ;;
 
+  # ── SETUP INGEST (install Python deps for MQTT + SSv2 pipeline) ─────────────
+  setup-ingest)
+    echo "=== Setting up ingest pipeline venv ==="
+    bash "$APP_DIR/setup.sh"
+    ;;
+
+  # ── RUN PRODUCER (MQTT synthetic data generator) ─────────────────────────
+  run-producer)
+    echo "=== Starting MQTT Producer ==="
+    if [[ ! -f "$APP_DIR/.env" ]]; then
+      echo "ERROR: $APP_DIR/.env not found." >&2
+      echo "  cp $APP_DIR/.env.example $APP_DIR/.env && vim $APP_DIR/.env" >&2
+      exit 1
+    fi
+    if [[ ! -d "$APP_DIR/.venv" ]]; then
+      echo "ERROR: venv not found. Run: ./manage.sh setup-ingest" >&2
+      exit 1
+    fi
+    "$APP_DIR/.venv/bin/python" "$APP_DIR/mqtt_producer.py"
+    ;;
+
+  # ── RUN CONSUMER (MQTT → Snowpipe Streaming V2) ───────────────────────────
+  run-consumer)
+    echo "=== Starting MQTT → Snowpipe Streaming V2 Consumer ==="
+    if [[ ! -f "$APP_DIR/.env" ]]; then
+      echo "ERROR: $APP_DIR/.env not found." >&2
+      echo "  cp $APP_DIR/.env.example $APP_DIR/.env && vim $APP_DIR/.env" >&2
+      exit 1
+    fi
+    if [[ ! -d "$APP_DIR/.venv" ]]; then
+      echo "ERROR: venv not found. Run: ./manage.sh setup-ingest" >&2
+      exit 1
+    fi
+    "$APP_DIR/.venv/bin/python" "$APP_DIR/snowpipe_consumer.py"
+    ;;
+
+  # ── RUN INGEST (producer + consumer in parallel, Ctrl+C stops both) ──────
+  run-ingest)
+    echo "=== Starting full ingest pipeline ==="
+    for f in "$APP_DIR/.env" ; do
+      if [[ ! -f "$f" ]]; then
+        echo "ERROR: $f not found. Run: cp $APP_DIR/.env.example $APP_DIR/.env" >&2
+        exit 1
+      fi
+    done
+    if [[ ! -d "$APP_DIR/.venv" ]]; then
+      echo "ERROR: venv not found. Run: ./manage.sh setup-ingest" >&2
+      exit 1
+    fi
+    echo "Starting consumer (background)..."
+    "$APP_DIR/.venv/bin/python" "$APP_DIR/snowpipe_consumer.py" &
+    CONSUMER_PID=$!
+    echo "Consumer PID: $CONSUMER_PID"
+    sleep 2  # give consumer time to connect before producer starts
+    echo "Starting producer..."
+    "$APP_DIR/.venv/bin/python" "$APP_DIR/mqtt_producer.py" || true
+    echo "Producer finished. Stopping consumer (PID $CONSUMER_PID)..."
+    kill "$CONSUMER_PID" 2>/dev/null || true
+    wait "$CONSUMER_PID" 2>/dev/null || true
+    echo "=== Ingest pipeline stopped ==="
+    ;;
+
   # ── RUN DASHBOARD LOCALLY ─────────────────────────────────────────────────
   run-dashboard)
     echo "=== Running Streamlit Dashboard Locally ==="
@@ -197,6 +260,19 @@ Distribution Insights — manage.sh
 Usage: ./manage.sh <command>
 
 Commands:
+  setup-ingest    Install Python venv for MQTT producer and SSv2 consumer.
+                 Creates app/.venv with paho-mqtt, snowpipe-streaming, faker.
+
+  run-producer   Publish synthetic advisor events to MQTT every 5 seconds
+                 for 10 minutes. Requires app/.env to be configured.
+
+  run-consumer   Subscribe to MQTT topic and stream rows into
+                 ANALYTICS_DEV_DB.STAGING.ADVISOR_EVENTS_RAW via
+                 Snowpipe Streaming V2. Requires app/.env.
+
+  run-ingest     Run producer + consumer together (producer in foreground,
+                 consumer in background). Ctrl+C stops both.
+
   build          Create all schemas, tables, Dynamic Tables, Cortex Agent, and Alerts.
                  Safe to re-run (all statements use CREATE OR REPLACE).
 
