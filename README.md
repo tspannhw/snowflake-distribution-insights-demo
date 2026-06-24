@@ -8,7 +8,7 @@ End-to-end Snowflake AI demo covering Salesforce Zero-Copy integration, AI pipel
 
 ```bash
 # 1. Clone and enter project
-cd /path/to/huddledatascience
+cd snowflake-distribution-insights-demo
 
 # 2. Build all infrastructure (schemas, tables, Dynamic Tables, agent, alerts)
 ./manage.sh build
@@ -29,7 +29,7 @@ snow stage copy scripts/02_semantic_view.yaml \
 ## Project Layout
 
 ```
-huddledatascience/
+snowflake-distribution-insights-demo/
 ├── manage.sh                          # Build / test / deploy orchestration
 ├── AGENTS.md                          # Project rules and conventions
 │
