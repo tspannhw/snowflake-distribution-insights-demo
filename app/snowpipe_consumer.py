@@ -71,11 +71,17 @@ def _build_profile_json() -> str:
     Write a temporary profile.json for the SSv2 SDK.
     The file is placed in a tempdir so it is never committed.
     Returns the path as a string.
+
+    IMPORTANT: The SSv2 SDK requires the account identifier to be lowercase.
+    Uppercase letters in the account field cause JWT signature validation to
+    fail with error 390144 "JWT token is invalid".
     """
+    # SSv2 SDK REQUIRES lowercase account identifier for JWT generation
+    account = config.SNOWFLAKE_ACCOUNT.lower().strip()
     profile = {
         "user":             config.SNOWFLAKE_USER,
-        "account":          config.SNOWFLAKE_ACCOUNT,
-        "url":              f"https://{config.SNOWFLAKE_ACCOUNT}.snowflakecomputing.com:443",
+        "account":          account,
+        "url":              f"https://{account}.snowflakecomputing.com:443",
         "private_key_file": config.SNOWFLAKE_PRIVATE_KEY_PATH,
         "role":             config.SNOWFLAKE_ROLE,
     }

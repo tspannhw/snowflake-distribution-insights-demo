@@ -17,7 +17,8 @@ else:
     load_dotenv()  # fallback: look up the directory tree
 
 # ── Snowflake ─────────────────────────────────────────────────────────────────
-SNOWFLAKE_ACCOUNT       = os.environ["SNOWFLAKE_ACCOUNT"]
+# SSv2 SDK requires lowercase account identifier for JWT generation (error 390144)
+SNOWFLAKE_ACCOUNT       = os.environ["SNOWFLAKE_ACCOUNT"].lower().strip()
 SNOWFLAKE_USER          = os.environ["SNOWFLAKE_USER"]
 SNOWFLAKE_PRIVATE_KEY_PATH = os.path.expanduser(
     os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "~/.snowflake/keys/snowflake_private_key.p8")
