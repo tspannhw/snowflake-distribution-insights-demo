@@ -26,11 +26,19 @@ SNOWFLAKE_PRIVATE_KEY_PATH = os.path.expanduser(
 )
 # Dedicated SSv2 key — generated with openssl pkcs8 -nocrypt for Rust JWT compat.
 # Falls back to SNOWFLAKE_PRIVATE_KEY_PATH if not set.
-SSV2_PRIVATE_KEY_PATH = os.path.expanduser(
-    os.environ.get("SSV2_PRIVATE_KEY_PATH",
-                   os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH",
-                                  "~/.snowflake/keys/snowflake_private_key.p8"))
-)
+# IMPORTANT: resolved to absolute path — the SSv2 Rust SDK resolves private_key_file
+# relative to the profile.json location (a temp dir), not the CWD.
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _abs_key(raw: str) -> str:
+    """Expand ~ and resolve relative paths relative to the app/ directory."""
+    p = os.path.expanduser(raw)
+    return p if os.path.isabs(p) else os.path.join(_APP_DIR, p)
+
+_ssv2_raw = os.environ.get("SSV2_PRIVATE_KEY_PATH",
+                            os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH",
+                                           "~/.snowflake/keys/snowflake_private_key.p8"))
+SSV2_PRIVATE_KEY_PATH = _abs_key(_ssv2_raw)
 SNOWFLAKE_ROLE          = os.environ.get("SNOWFLAKE_ROLE", "SALES_ENGINEER")
 SNOWFLAKE_WAREHOUSE     = os.environ.get("SNOWFLAKE_WAREHOUSE", "INGEST")
 SNOWFLAKE_DATABASE      = os.environ.get("SNOWFLAKE_DATABASE", "ANALYTICS_DEV_DB")
