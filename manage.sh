@@ -12,10 +12,27 @@ PROJECT="distribution_insights"
 DB="ANALYTICS_DEV_DB"
 SCHEMA="DISTRIBUTION"
 WAREHOUSE="INGEST"
-CONNECTION="${SNOWFLAKE_CONNECTION:-your_connection}"
 DASHBOARD="dashboard/dashboard.py"
 STREAMLIT_NAME="DISTRIBUTION_INSIGHTS"
 APP_DIR="app"
+
+# ── Resolve connection name ───────────────────────────────────────────────────
+# Priority: 1) SNOWFLAKE_CONNECTION env var  2) app/.env  3) first in connections.toml
+_resolve_connection() {
+  if [[ -n "${SNOWFLAKE_CONNECTION:-}" ]]; then echo "${SNOWFLAKE_CONNECTION}"; return; fi
+  local env_file="$SCRIPT_DIR/app/.env"
+  if [[ -f "$env_file" ]]; then
+    local val; val=$(grep -E '^SNOWFLAKE_CONNECTION=' "$env_file" | head -1 | cut -d= -f2-)
+    if [[ -n "$val" ]]; then echo "$val"; return; fi
+  fi
+  local toml="$HOME/.snowflake/connections.toml"
+  if [[ -f "$toml" ]]; then
+    local first; first=$(grep -m1 '^\[' "$toml" | tr -d '[]')
+    if [[ -n "$first" ]]; then echo "$first"; return; fi
+  fi
+  echo "your_connection"
+}
+CONNECTION="$(_resolve_connection)"
 
 # Helper: run a SQL file and echo its name
 run_sql_file() {
