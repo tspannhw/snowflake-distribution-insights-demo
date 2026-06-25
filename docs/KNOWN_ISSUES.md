@@ -24,7 +24,17 @@
 
 ## Active Known Issues
 
-### 1. ACCOUNT_USAGE Alert History Lag
+### 1. snowpipe-streaming SDK JWT failure on org-based accounts (390144)
+
+**Symptom:** Consumer fails with `HTTP 401, error_code=390144, message=JWT token is invalid` on `get_subdomain_name`.
+
+**Root cause:** The `snowpipe-streaming` Python SDK (all versions including v1.6.0) uses a Rust core that automatically **uppercases** the account identifier in the JWT `iss` claim (e.g. `SFSENORTHAMERICA-TSPANN-AWS1`). However, the Snowflake SSv2 `/v2/streaming/hostname` endpoint requires the account in **lowercase** (`sfsenorthamerica-tspann-aws1`) for org-based account identifiers. A manually-built Python JWT with lowercase account returns HTTP 200 to the same endpoint, confirming the auth mechanism is correct — only the SDK's account casing is wrong.
+
+**Current fix:** The consumer uses `snowflake-connector-python` for SQL INSERT operations. The connector handles account case correctly (proven by normal `snow sql` usage), and delivers real-time MQTT→Snowflake inserts with sub-second latency.
+
+**Future fix:** When the SDK's Rust core is updated to preserve lowercase account identifiers, re-enable the `StreamingIngestClient` path in `app/snowpipe_consumer.py` (currently commented out).
+
+**Track:** https://github.com/snowflakedb/snowflake-ingest-python
 
 **Symptom:** Alert History tab shows 0 rows even after alerts have run.
 

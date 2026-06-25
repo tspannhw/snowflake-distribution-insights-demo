@@ -4,8 +4,14 @@
 # MQTT client (v2 callback API)
 paho-mqtt>=2.1.0
 
-# Snowpipe Streaming V2 SDK
-# Docs: https://docs.snowflake.com/en/user-guide/snowpipe-streaming/data-load-snowpipe-streaming-overview
+# Snowflake connector for Python (primary ingest path — keypair auth works reliably)
+# Docs: https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect
+snowflake-connector-python>=3.0.0
+
+# Snowpipe Streaming V2 SDK (kept for future use when SDK bug is fixed)
+# Bug: SDK Rust core uppercases org-based account identifiers in JWT iss claim,
+# causing HTTP 401 (error_code=390144) on Snowflake SSv2 endpoints.
+# Track: https://github.com/snowflakedb/snowflake-ingest-python
 snowpipe-streaming>=0.2.0
 
 # Environment / config
@@ -13,3 +19,6 @@ python-dotenv>=1.1.0
 
 # Synthetic data generation
 faker>=37.0.0
+
+# RSA key loading (used by both consumer and diagnostic scripts)
+cryptography>=43.0.0
